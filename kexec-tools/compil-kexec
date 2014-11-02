@@ -1,0 +1,266 @@
+#!/bin/bash
+
+tput setaf 6
+setterm -bold 
+echo " "
+echo "************************************"
+echo "**** Cross Compile Configurator ****"
+echo "**** And kexec compilation      ****"
+echo "**** By delewer                 ****"
+echo "**"
+echo "**"
+echo "**"
+echo "** Pre-requisite : sudo apt-get install gcc-arm-linux-gnueabi"
+echo "** Pre-requisite : sudo apt-get install android-tools-adb"
+echo "** Pre-requisite : sudo apt-get install lzop"
+echo "**"
+echo "** Pre-requisite : you must compil stock kernel to adapt module for your kexec :" 
+echo "** Pre-requisite :  eg - cd Sony_official_kernel_sources/14.3.A.0.757/kernel"
+echo "** Pre-requisite :  eg - export ARCH=arm"
+echo "** Pre-requisite :  eg - export CROSS_COMPILE=/usr/bin/arm-linux-gnueabi-"
+echo "** Pre-requisite :  eg - make rhine_honami_row_defconfig"
+echo "** Pre-requisite :  eg - make"
+echo "**"
+echo "*"
+echo " "
+
+export setup_CC=""
+export setup_TC=""
+
+while [ ! $setup_CC ] ; do
+
+tput setaf 2
+setterm -bold
+echo " "
+echo "==== Toolchain ===="
+echo "select the Toolchain"
+echo "  1)  Linaro 4.7.3        : arm-linux-gnueabi"
+echo "  2)  Linaro 4.6-2011.10  : arm-eabi"
+echo " "
+echo "  x)  exit"
+echo " "
+
+setterm -bold off
+read -p "Choice ?" -n 1 -r 
+case ${REPLY} in
+    1) export setup_CC="arm-linux-gnueabi"
+       export setup_TC="arm-linux-gnueabi"
+       ;;
+    2) export setup_CC="arm-eabi"
+       export setup_TC="arm-linux-gnueabi"
+       ;;
+    x) exit
+       echo "Exiting..."
+       echo " "
+       exit
+       ;;
+    *) echo " "
+       echo "invalid option !!!"
+       echo " "
+       echo " "
+       ;;
+esac
+
+done
+
+## Add path and Env for Cross Compiler
+[[ $(echo $PATH|grep "/usr/${setup_TC}/bin" | wc -l) = 0 ]] && PATH=$PATH:$HOME/usr/${setup_TC}/bin/
+[[ $(echo $PATH|grep "/usr/${setup_TC}/lib" | wc -l) = 0 ]] && PATH=$PATH:$HOME/usr/${setup_TC}/lib/
+[[ $(echo $PATH|grep "/usr/${setup_TC}/include" | wc -l) = 0 ]] && PATH=$PATH:$HOME/usr/${setup_TC}/include/
+[[ $(echo $PATH|grep "${HOME}/kernel/toolchain/android-toolchain-eabi-linaro-4.6-2011.10/bin" | wc -l) = 0 ]] && PATH=$PATH:${HOME}/kernel/toolchain/android-toolchain-eabi-linaro-4.6-2011.10/bin/
+[[ $(echo $PATH|grep "${HOME}/kernel/toolchain/android-toolchain-eabi-linaro-4.6-2011.10/lib" | wc -l) = 0 ]] && PATH=$PATH:${HOME}/kernel/toolchain/android-toolchain-eabi-linaro-4.6-2011.10/lib/
+[[ $(echo $PATH|grep "${HOME}/kernel/toolchain/android-toolchain-eabi-linaro-4.6-2011.10/include" | wc -l) = 0 ]] && PATH=$PATH:${HOME}/kernel/toolchain/android-toolchain-eabi-linaro-4.6-2011.10/include/
+export CROSS_COMPILE=${setup_CC}-
+export ARCH=arm
+
+## To compil STATIC (!!!)
+#export LDFLAGS="-static"
+export LDFLAGS=""
+
+##
+echo " "
+echo " Don't forget to configure your Cross Compile Project by :"
+echo "     configure --target=${setup_CC} --host=${setup_CC}"
+echo " "
+
+
+## Surcharge for Standard Compiler
+#export CC=""
+#export AR=""
+#export AS=""
+#export OBJCOPY=""
+#export CPP=""
+#export GPP=""
+#export CC=${setup_CC}-gcc
+#export AR=${setup_CC}-ar
+#export AS=${setup_CC}-as
+#export OBJCOPY=${setup_CC}-objcopy
+#export CPP=${setup_CC}-c++
+#export GPP=${setup_CC}-g++
+
+## To add option in compiler
+#export CFLAGS=""
+#export CPPFLAGS=""
+#export GPPFLAGS=""
+#export CFLAGS="-I/usr/include"
+#export CPPFLAGS="-I/usr/include"
+#export GPPFLAGS="-I/usr/include"
+
+
+
+export RHOME=${HOME}/kernel
+export ROOT_TC=${RHOME}/toolchain
+
+
+tput setaf 6
+setterm -bold 
+echo " "
+echo "**** KEXEC Compil  ****"
+echo "**** FOR Xperia Z1 ****"
+echo "**** By delewer ****"
+echo " "
+echo "  For tools and modules installation, be sure to have 'adb' enabled"
+echo "  You can use adb wifi by modifying theses lines in script :"
+echo "   (or execute before load the script)"
+echo "    adb connect <ip address>:5555"
+echo " "
+
+[ ! -d ${RHOME} ] && mkdir ${RHOME}
+[ ! -d ${RHOME}/final_files ] && mkdir ${RHOME}/final_files
+
+
+while [ -1 ] ; do
+
+tput setaf 2
+setterm -bold
+echo " "
+echo "==== Work with  kexec ===="
+echo "select the compil"
+echo "  0)  Clean"
+echo "  1)  Kexec tools compilation"
+echo "  2)  Kexec modules compilation"
+echo " "
+echo "  8)  Install kexec-tools in device"
+echo "  9)  Install kexec-modules in device"
+echo " "
+echo "  x)  exit"
+echo " "
+
+setterm -bold off
+read -p "Choice ?" -n 1 -r 
+case ${REPLY} in
+    0) 	make clean
+	cd kexec-module
+	make clean
+	cd -
+	;;
+    1)	make
+	[ -e build/sbin/kexec ] && cp -p build/sbin/kexec $RHOME/final_files
+	[ -e build/sbin/kdump ] && cp -p build/sbin/kdump $RHOME/final_files
+	[ -e build/sbin/kernel-dt ] && cp -p build/sbin/kernel-dt $RHOME/final_files
+	;;
+    2) 	cd kexec-module
+	make
+	find *.ko -exec cp -p '{}' $RHOME/final_files \;
+	cd -
+	cd $RHOME/final_files
+	find *.ko -exec ${setup_CC}-strip --strip-unneeded '{}' \;
+#	# Patch for stock .257 kernel Xperia Z1
+#	if [ -e procfs_rw.ko ]
+#	 then
+#	  echo " "
+#	  echo "Patching 'procfs_rw.ko' for Xperia Z1 Stock .257 kernel ..."
+#	  sed -i 's/\x32\x76\x86\x29/\x72\xFF\x5E\x20/' procfs_rw.ko
+#	 fi
+#	if [ -e kexec_load.ko ]
+#	 then
+#	  echo " "
+#	  echo "Patching 'kexec_load.ko' for Xperia Z1 Stock .257 kernel ..."
+#	  sed -i 's/\x32\x76\x86\x29/\x72\xFF\x5E\x20/' kexec_load.ko
+#	  sed -i 's/\xBB\xD0\xF8\x4D/\x0E\x1C\x63\x77/' kexec_load.ko
+#	  sed -i 's/\xA6\x26\x81\x1A/\xD4\x56\x02\x7E/' kexec_load.ko
+#	  sed -i 's/\xA3\xD1\xEC\x96/\xEC\x43\x28\x1A/' kexec_load.ko
+#	  sed -i 's/\x8C\xE6\x6A\x5F/\x3D\xDF\x02\xF2/' kexec_load.ko
+#	  sed -i 's/\x3E\xF3\xEF\xE9/\x18\x7F\xA6\x8A/' kexec_load.ko
+#	  sed -i 's/\x8B\xD2\x92\x10/\xC8\x19\x08\x9C/' kexec_load.ko
+#	  sed -i 's/\x1C\xE8\x18\xE1/\x7C\x71\x9E\xEF/' kexec_load.ko
+#	  sed -i 's/\xAB\x2C\x2F\x8B/\x8E\xD7\x63\xC0/' kexec_load.ko
+#	  sed -i 's/\xF5\x62\xAA\x4B/\x34\x80\x1B\x74/' kexec_load.ko
+#	  sed -i 's/\x00\x52\xD6\xD7/\x6F\x80\x91\x20/' kexec_load.ko
+#	  sed -i 's/\x4F\x77\x57\x6A/\x0C\x57\xC7\x63/' kexec_load.ko
+#	  sed -i 's/\xCA\x2F\x65\x71/\x92\xB8\x7F\x53/' kexec_load.ko
+#	  sed -i 's/\x0F\xD0\xA0\x91/\xFA\x80\x15\xB4/' kexec_load.ko
+#	  sed -i 's/\x29\xA0\x6D\x48/\x6C\x6B\x96\x54/' kexec_load.ko
+#	  sed -i 's/\x6D\x1F\x1F\x37/\xCC\x5E\x79\x8B/' kexec_load.ko
+#	  sed -i 's/\xFD\x23\xD0\xFB/\xE3\xE3\x68\x52/' kexec_load.ko
+#	 fi
+	cd -
+	;;
+    8)	if [ -e $RHOME/final_files/kexec ]
+	 then
+	  echo " "
+	  echo " "
+	  echo "Loading in progress..."
+	  ## this line must be activated for tcpip adb
+	  #adb connect 192.168.0.11:5555 >/dev/null
+	  adb shell su -c "mount -o remount,rw /system"
+	  adb shell "[ ! -d /data/local/tmp ] && mkdir /data/local/tmp"
+	  adb shell "[ ! -d /data/local/tmp/tmp_kexec ] && mkdir /data/local/tmp/tmp_kexec"
+	  adb push $RHOME/final_files/kexec /data/local/tmp/tmp_kexec
+	  adb push $RHOME/final_files/kdump /data/local/tmp/tmp_kexec
+	  adb push $RHOME/final_files/kernel-dt /data/local/tmp/tmp_kexec
+	  adb shell su -c "cp -p /data/local/tmp/tmp_kexec/kexec /system/bin/kexec"
+	  adb shell su -c "cp -p /data/local/tmp/tmp_kexec/kdump /system/bin/kdump"
+	  adb shell su -c "cp -p /data/local/tmp/tmp_kexec/kernel-dt /system/bin/kernel-dt"
+	  adb shell su -c "chmod 777 /system/bin/kexec"
+	  adb shell su -c "chmod 777 /system/bin/kdump"
+	  adb shell su -c "chmod 777 /system/bin/kernel-dt"
+	  adb shell su -c "chown root:root /system/bin/kexec"
+	  adb shell su -c "chown root:root /system/bin/kdump"
+	  adb shell su -c "chown root:root /system/bin/kernel-dt"
+	  adb shell su -c "rm /data/atags >/dev/null 2>&1"
+	 fi
+	;;
+    9)	if [ -e $RHOME/final_files/kexec_load.ko ]
+	 then
+	  echo " "
+	  echo " "
+	  echo "Loading in progress..."
+	  ## this line must be activated for tcpip adb
+	  #adb connect 192.168.0.11:5555 >/dev/null
+	  adb shell su -c "mount -o remount,rw /system"
+	  adb shell "[ ! -d /data/local/tmp ] && mkdir /data/local/tmp"
+	  adb shell "[ ! -d /data/local/tmp/tmp_kexec ] && mkdir /data/local/tmp/tmp_kexec"
+	  adb push $RHOME/final_files/kexec_load.ko /data/local/tmp/tmp_kexec
+	  adb push $RHOME/final_files/procfs_rw.ko /data/local/tmp/tmp_kexec
+	  adb shell su -c "cp -p /data/local/tmp/tmp_kexec/kexec_load.ko /system/lib/modules"
+	  adb shell su -c "cp -p /data/local/tmp/tmp_kexec/procfs_rw.ko /system/lib/modules"
+	  adb shell su -c "chmod 777 /system/lib/modules/kexec_load.ko"
+	  adb shell su -c "chmod 777 /system/lib/modules/procfs_rw.ko"
+	  adb shell su -c "chown root:root /system/lib/modules/kexec_load.ko"
+	  adb shell su -c "chown root:root /system/lib/modules/procfs_rw.ko"
+#	  adb shell su -c "rm /data/atags >/dev/null 2>&1"
+	  adb shell su -c "rmmod kexec_load.ko >/dev/null 2>&1"
+	  adb shell su -c "insmod /system/lib/modules/kexec_load.ko"
+#	  adb shell su -c "rm /dev/kexec_driver >/dev/null 2>&1"
+#	  adb shell su -c "mknod /dev/kexec_driver c 100 0"
+#	  adb shell su -c "chmod 666 /dev/kexec_driver"
+	  # Test if installation ok
+#          echo " "
+#	  echo "Kexec_driver test..."
+#	  adb shell su -c "cat /dev/kexec_driver"
+	 fi
+	;;
+    x)	exit
+	echo "Exiting..."
+	echo " "
+	exit
+	;;
+    *)	echo " "
+	echo "invalid option !!!"
+	echo " "
+	echo " "
+	;;
+esac
+
+done 

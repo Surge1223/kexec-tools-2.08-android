@@ -1,0 +1,12 @@
+{
+    fsn_info_type = <*I0>;
+    geometry = "181 391 687 300 0 0  1440 900 ";
+    iconposition = <*I5>;
+    iconsize = <*I48>;
+    labeltxtsize = <*I12>;
+    lastselection = (
+    );
+    singlenode = <*I1>;
+    spatial = <*I1>;
+    viewtype = Icon;
+}
